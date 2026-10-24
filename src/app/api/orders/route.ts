@@ -49,10 +49,10 @@ export async function POST(request:Request){try{
   }
   // Gift: the buyer pays and keeps a receipt; the recipient gets their own zero-amount order that carries the delivery.
   const [recipientWallet]=await tx.select({currency:users.currency}).from(users).where(eq(users.id,recipient.id));
-  const [received]=await tx.insert(orders).values({userId:recipient.id,productId:product.id,kind:"product",title:product.name,amount:0,currency:recipientWallet?.currency||"USD",baseAmount:0,status:delivery?"completed":"processing",idempotencyKey:`${key}:gift`,metadata:{...common,fulfillment:delivery||null,gift:{from:user.id,fromName:maskedName(user.name),message:data.gift.message}}}).returning();
-  const [order]=await tx.insert(orders).values({userId:user.id,productId:product.id,kind:"product",title:`Gift: ${product.name}`,amount,currency:user.currency,baseAmount:netUsd,status:"completed",idempotencyKey:key,metadata:{...common,fulfillment:null,...couponMeta,fx,gift:{to:recipient.id,toName:maskedName(recipient.name),message:data.gift.message,recipientOrderId:received.id}}}).returning();
+  const [received]=await tx.insert(orders).values({userId:recipient.id,productId:product.id,kind:"product",title:product.name,amount:0,currency:recipientWallet?.currency||"USD",baseAmount:0,status:delivery?"completed":"processing",idempotencyKey:`${key}:gift`,metadata:{...common,fulfillment:delivery||null,gift:{from:user.id,fromName:maskedName(user.name),message:data.gift?.message??""}}}).returning();
+  const [order]=await tx.insert(orders).values({userId:user.id,productId:product.id,kind:"product",title:`Gift: ${product.name}`,amount,currency:user.currency,baseAmount:netUsd,status:"completed",idempotencyKey:key,metadata:{...common,fulfillment:null,...couponMeta,fx,gift:{to:recipient.id,toName:maskedName(recipient.name),message:data.gift?.message??"",recipientOrderId:received.id}}}).returning();
   if(inventoryId)await tx.update(inventoryItems).set({orderId:received.id}).where(eq(inventoryItems.id,inventoryId));
-  await tx.insert(gifts).values({senderId:user.id,recipientId:recipient.id,senderOrderId:order.id,recipientOrderId:received.id,productId:product.id,message:data.gift.message});
+  await tx.insert(gifts).values({senderId:user.id,recipientId:recipient.id,senderOrderId:order.id,recipientOrderId:received.id,productId:product.id,message:data.gift?.message??""});
   if(coupon)await recordRedemption(tx,coupon.coupon.id,user.id,order.id,coupon.discount);
   return {order,giftTo:recipient.id,receivedId:received.id,productName:product.name};
  });
